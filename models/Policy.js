@@ -5,6 +5,11 @@ const PolicySchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  company: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Company',
+    required: true,
+  },
   department: {
     type: String,
     required: true,

@@ -1,19 +1,37 @@
 import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import User from '@/models/User';
-import { generateToken } from '@/lib/auth';
+import Company from '@/models/Company';
 
 export async function POST(request) {
   try {
     await connectDB();
 
     const body = await request.json();
-    const { name, email, password, department, role } = body;
+    const { name, email, password, department, role, companyId } = body;
 
     // Validation
-    if (!name || !email || !password || !department) {
+    if (!name || !email || !password || !department || !companyId) {
       return NextResponse.json(
-        { success: false, message: 'Please provide all required fields' },
+        { success: false, message: 'Please provide all required fields including company' },
+        { status: 400 }
+      );
+    }
+
+    // Verify company exists
+    const company = await Company.findById(companyId);
+    if (!company) {
+      return NextResponse.json(
+        { success: false, message: 'Invalid company. Please contact your administrator.' },
+        { status: 400 }
+      );
+    }
+
+    // Verify email domain matches company domain
+    const emailDomain = email.split('@')[1];
+    if (emailDomain.toLowerCase() !== company.domain) {
+      return NextResponse.json(
+        { success: false, message: `Email domain must match company domain: ${company.domain}` },
         { status: 400 }
       );
     }
@@ -27,8 +45,9 @@ export async function POST(request) {
       );
     }
 
-    // Generate employee ID
-    const employeeId = `EMP${Date.now().toString().slice(-6)}`;
+    // Generate employee ID with company prefix
+    const companyPrefix = company.name.substring(0, 3).toUpperCase();
+    const employeeId = `${companyPrefix}${Date.now().toString().slice(-6)}`;
 
     // Create user
     const user = await User.create({
@@ -38,21 +57,14 @@ export async function POST(request) {
       department,
       role: role || 'employee',
       employeeId,
+      company: companyId,
     });
 
-    // Generate token
-    const token = generateToken({
-      userId: user._id,
-      email: user.email,
-      role: user.role,
-    });
-
-    // Return user data (without password)
+    // Return success message (without token - user needs to login separately)
     return NextResponse.json(
       {
         success: true,
-        message: 'User registered successfully',
-        token,
+        message: 'Account created successfully! Please sign in with your credentials.',
         user: {
           id: user._id,
           name: user.name,

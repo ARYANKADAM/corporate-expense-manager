@@ -1,51 +1,48 @@
 import Link from 'next/link';
 import RegisterForm from '@/components/auth/RegisterForm';
-import { Building2 } from 'lucide-react';
+import { BarChart3, ArrowLeft } from 'lucide-react';
 
 export default function RegisterPage() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
-        {/* Header */}
-        <div className="text-center">
-          <div className="flex justify-center">
-            <div className="bg-blue-600 p-3 rounded-xl">
-              <Building2 className="w-12 h-12 text-white" />
+    <div className="min-h-screen bg-linear-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center p-4">
+      {/* Simple Back Button */}
+      <Link 
+        href="/" 
+        className="absolute top-6 left-6 flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
+      >
+        <ArrowLeft className="w-5 h-5" />
+        <span className="hidden sm:inline">Back to Home</span>
+      </Link>
+
+      {/* Centered Registration Form */}
+      <div className="w-full max-w-md">
+        {/* Logo and Title */}
+        <div className="text-center mb-8">
+          <div className="flex justify-center mb-4">
+            <div className="w-16 h-16 bg-linear-to-br from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg">
+              <BarChart3 className="w-8 h-8 text-white" />
             </div>
           </div>
-          <h2 className="mt-6 text-3xl font-extrabold text-gray-900">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">
             Create Account
-          </h2>
-          <p className="mt-2 text-sm text-gray-600">
-            Join our expense management platform
+          </h1>
+          <p className="text-gray-600">
+            Join ExpenseFlow to get started
           </p>
         </div>
 
-        {/* Register Form Card */}
-        <div className="bg-white rounded-xl shadow-lg p-8">
+        {/* Registration Form Card */}
+        <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
           <RegisterForm />
-
-          {/* Divider */}
-          <div className="mt-6">
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-300"></div>
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-white text-gray-500">
-                  Already have an account?
-                </span>
-              </div>
-            </div>
-          </div>
-
+          
           {/* Login Link */}
           <div className="mt-6 text-center">
+            <span className="text-gray-600">Already have an account? </span>
             <Link
               href="/login"
-              className="text-blue-600 hover:text-blue-500 font-medium"
+              className="text-blue-600 hover:text-blue-700 font-semibold transition-colors"
             >
-              Sign in instead
+              Sign in
             </Link>
           </div>
         </div>

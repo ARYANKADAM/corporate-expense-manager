@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import axios from 'axios';
+import apiClient from '@/lib/apiClient';
 import Card from '@/components/ui/Card';
 import { formatCurrency } from '@/lib/utils';
 import { 
@@ -46,7 +46,7 @@ export default function ExecutiveTrendsPage() {
   const fetchTrends = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('/api/analytics/dashboard');
+      const response = await apiClient.get('/api/analytics/dashboard');
       if (response.data.success) {
         setAnalytics(response.data.analytics);
       }

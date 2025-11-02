@@ -28,11 +28,21 @@ export default function ApprovalQueue() {
   const fetchPendingExpenses = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('/api/expenses?status=pending');
+      // Fetch BOTH pending and flagged expenses for approval
+      const [pendingResponse, flaggedResponse] = await Promise.all([
+        axios.get('/api/expenses?status=pending'),
+        axios.get('/api/expenses?status=flagged')
+      ]);
       
-      if (response.data.success) {
-        setExpenses(response.data.expenses);
-      }
+      const allExpenses = [
+        ...(pendingResponse.data.success ? pendingResponse.data.expenses : []),
+        ...(flaggedResponse.data.success ? flaggedResponse.data.expenses : [])
+      ];
+      
+      // Sort by creation date (newest first)
+      allExpenses.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      
+      setExpenses(allExpenses);
     } catch (error) {
       console.error('Fetch expenses error:', error);
     } finally {
@@ -90,9 +100,14 @@ export default function ApprovalQueue() {
     <>
       <Card>
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold text-gray-900">
-            Pending Approvals ({expenses.length})
-          </h2>
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900">
+              Approval Queue ({expenses.length})
+            </h2>
+            <p className="text-sm text-gray-600 mt-1">
+              Expenses pending approval and policy violations requiring review
+            </p>
+          </div>
           <Button variant="outline" onClick={fetchPendingExpenses}>
             Refresh
           </Button>
@@ -112,15 +127,29 @@ export default function ApprovalQueue() {
               >
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-3">
+                    <div className="flex items-center gap-3 mb-3 flex-wrap">
                       <h3 className="text-lg font-semibold text-gray-900">
                         {expense.vendor}
                       </h3>
                       <span className="px-3 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded-full">
                         {expense.category}
                       </span>
+                      
+                      {/* Status Badge */}
+                      {expense.status === 'flagged' ? (
+                        <span className="px-3 py-1 bg-red-100 text-red-800 text-xs font-medium rounded-full flex items-center gap-1 animate-pulse">
+                          <AlertCircle className="w-3 h-3" />
+                          FLAGGED - Requires Review
+                        </span>
+                      ) : (
+                        <span className="px-3 py-1 bg-yellow-100 text-yellow-800 text-xs font-medium rounded-full flex items-center gap-1">
+                          <AlertCircle className="w-3 h-3" />
+                          Pending Approval
+                        </span>
+                      )}
+                      
                       {!expense.isCompliant && (
-                        <span className="px-3 py-1 bg-orange-100 text-orange-800 text-xs font-medium rounded-full flex items-center gap-1">
+                        <span className="px-2 py-1 bg-orange-100 text-orange-800 text-xs font-medium rounded-full flex items-center gap-1">
                           <AlertCircle className="w-3 h-3" />
                           Policy Violation
                         </span>
@@ -187,7 +216,7 @@ export default function ApprovalQueue() {
                     className="flex-1"
                   >
                     <CheckCircle className="w-4 h-4 mr-2" />
-                    Approve
+                    {expense.status === 'flagged' ? 'Override & Approve' : 'Approve'}
                   </Button>
                   <Button
                     variant="danger"
@@ -221,7 +250,7 @@ export default function ApprovalQueue() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg max-w-md w-full p-6">
             <h3 className="text-xl font-bold text-gray-900 mb-4">
-              Confirm Action
+              {selectedExpense.status === 'flagged' ? 'Review Flagged Expense' : 'Confirm Approval'}
             </h3>
             
             <div className="mb-4">
@@ -231,9 +260,26 @@ export default function ApprovalQueue() {
               <p className="text-gray-700 mb-2">
                 <strong>Amount:</strong> {formatCurrency(selectedExpense.amount)}
               </p>
-              <p className="text-gray-700">
+              <p className="text-gray-700 mb-2">
                 <strong>Employee:</strong> {selectedExpense.employeeId?.name}
               </p>
+              
+              {selectedExpense.status === 'flagged' && (
+                <div className="mt-3 p-3 bg-orange-50 border border-orange-200 rounded-lg">
+                  <p className="text-sm font-medium text-orange-900 mb-1 flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4" />
+                    This expense was flagged for policy violations
+                  </p>
+                  {selectedExpense.policyViolations && selectedExpense.policyViolations.map((violation, idx) => (
+                    <p key={idx} className="text-xs text-orange-800 ml-6">
+                      • {violation.message}
+                    </p>
+                  ))}
+                  <p className="text-xs text-orange-700 mt-2">
+                    As Finance, you can override these violations if justified.
+                  </p>
+                </div>
+              )}
             </div>
 
             <div className="mb-6">

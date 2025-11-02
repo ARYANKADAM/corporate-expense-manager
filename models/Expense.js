@@ -6,6 +6,11 @@ const ExpenseSchema = new mongoose.Schema({
     ref: 'User',
     required: true,
   },
+  company: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Company',
+    required: true,
+  },
   amount: {
     type: Number,
     required: [true, 'Please provide an amount'],

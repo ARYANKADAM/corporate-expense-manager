@@ -220,7 +220,29 @@ export default function FinanceDashboard() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {categoryData.slice(0, 3).map((cat) => (
+        {/* Quick Actions */}
+        <Card className="bg-linear-to-r from-blue-50 to-indigo-50 border-blue-200">
+          <div className="flex items-center justify-between mb-2">
+            <h4 className="font-semibold text-gray-900">Quick Actions</h4>
+            <AlertCircle className="w-5 h-5 text-blue-600" />
+          </div>
+          <div className="space-y-3">
+            <a
+              href="/finance/approvals"
+              className="block w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-center font-medium"
+            >
+              Review Approval Queue
+            </a>
+            <a
+              href="/finance/expenses"
+              className="block w-full px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors text-center font-medium"
+            >
+              All Expenses
+            </a>
+          </div>
+        </Card>
+
+        {categoryData.slice(0, 2).map((cat) => (
           <Card key={cat.name}>
             <div className="flex items-center justify-between mb-2">
               <h4 className="font-semibold text-gray-900">{cat.name}</h4>

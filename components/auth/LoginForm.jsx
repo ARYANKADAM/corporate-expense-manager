@@ -1,19 +1,33 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import Input from '@/components/ui/Input';
 import Button from '@/components/ui/Button';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, CheckCircle } from 'lucide-react';
 
 export default function LoginForm() {
   const { login } = useAuth();
+  const searchParams = useSearchParams();
   const [formData, setFormData] = useState({
     email: '',
     password: '',
   });
   const [error, setError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const message = searchParams.get('message');
+    const registered = searchParams.get('registered');
+    
+    if (message) {
+      setSuccessMessage(message);
+    } else if (registered === 'true') {
+      setSuccessMessage('Registration successful! Please sign in with your credentials.');
+    }
+  }, [searchParams]);
 
   const handleChange = (e) => {
     setFormData({
@@ -21,6 +35,7 @@ export default function LoginForm() {
       [e.target.name]: e.target.value,
     });
     setError('');
+    setSuccessMessage(''); // Clear success message when user starts typing
   };
 
   const handleSubmit = async (e) => {
@@ -39,6 +54,13 @@ export default function LoginForm() {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      {successMessage && (
+        <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg flex items-center gap-2">
+          <CheckCircle className="w-5 h-5" />
+          <span>{successMessage}</span>
+        </div>
+      )}
+
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg flex items-center gap-2">
           <AlertCircle className="w-5 h-5" />

@@ -15,11 +15,28 @@ export async function GET(request) {
       );
     }
 
-    // Build query based on user role
-    let query = {};
+    console.log('📊 Analytics request from user:', user.userId, 'role:', user.role);
+
+    // Get full user details including company
+    const User = (await import('@/models/User')).default;
+    const fullUser = await User.findById(user.userId).populate('company');
+    
+    if (!fullUser || !fullUser.company) {
+      return NextResponse.json(
+        { success: false, message: 'User or company not found' },
+        { status: 404 }
+      );
+    }
+
+    console.log('🏢 Analytics for company:', fullUser.company.name);
+
+    // Build query - ALWAYS filter by company first
+    let query = { company: fullUser.company._id };
+    
     if (user.role === 'employee') {
       query.employeeId = user.userId;
     }
+    // Manager, finance, and executive see all company data
 
     // Get current month start and end
     const now = new Date();

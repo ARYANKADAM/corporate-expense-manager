@@ -34,6 +34,11 @@ const UserSchema = new mongoose.Schema({
     unique: true,
     required: true,
   },
+  company: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Company',
+    required: true,
+  },
   managerId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',

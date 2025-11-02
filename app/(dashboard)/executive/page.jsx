@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import axios from 'axios';
+import apiClient from '@/lib/apiClient';
 import Card from '@/components/ui/Card';
 import { formatCurrency } from '@/lib/utils';
 import { 
@@ -35,12 +35,15 @@ export default function ExecutiveDashboard() {
 
   const fetchAnalytics = async () => {
     try {
-      const response = await axios.get('/api/analytics/dashboard');
+      console.log('🔄 Fetching executive analytics...');
+      const response = await apiClient.get('/api/analytics/dashboard');
+      console.log('📊 Analytics response:', response.data);
       if (response.data.success) {
         setAnalytics(response.data.analytics);
       }
     } catch (error) {
-      console.error('Analytics error:', error);
+      console.error('❌ Analytics error:', error);
+      console.error('❌ Error details:', error.response?.data || error.message);
     } finally {
       setLoading(false);
     }

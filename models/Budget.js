@@ -1,6 +1,11 @@
 import mongoose from 'mongoose';
 
 const BudgetSchema = new mongoose.Schema({
+  company: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Company',
+    required: true,
+  },
   department: {
     type: String,
     required: true,

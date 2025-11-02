@@ -55,22 +55,33 @@ export async function GET(request) {
       );
     }
 
+    // Get full user details including company
+    const User = (await import('@/models/User')).default;
+    const fullUser = await User.findById(user.userId).populate('company');
+    
+    if (!fullUser || !fullUser.company) {
+      return NextResponse.json(
+        { success: false, message: 'User or company not found' },
+        { status: 404 }
+      );
+    }
+
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status');
     const category = searchParams.get('category');
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
 
-    // Build query based on user role
-    let query = {};
+    // Build query based on user role - ALWAYS filter by company first
+    let query = { company: fullUser.company._id };
 
     if (user.role === 'employee') {
       query.employeeId = user.userId;
     } else if (user.role === 'manager') {
-      // Manager sees their team's expenses (for now, all expenses)
-      // TODO: Add manager-employee relationship
+      // Manager sees their company's expenses (could be refined to team later)
+      // Company filter already applied above
     }
-    // Finance and Executive see all expenses
+    // Finance and Executive see all company expenses
 
     // Apply filters
     if (status) query.status = status;
@@ -81,11 +92,15 @@ export async function GET(request) {
       if (endDate) query.date.$lte = new Date(endDate);
     }
 
+    console.log(`📋 Fetching expenses for company: ${fullUser.company.name}, query:`, query);
+
     const expenses = await Expense.find(query)
       .populate('employeeId', 'name email department employeeId')
       .populate('approvedBy', 'name email')
       .sort({ createdAt: -1 })
       .limit(100);
+
+    console.log(`✅ Found ${expenses.length} expenses for company: ${fullUser.company.name}`);
 
     return NextResponse.json({
       success: true,
@@ -113,8 +128,29 @@ export async function POST(request) {
       );
     }
 
+    console.log('🔄 Creating expense for user:', user);
+
+    // Get full user details including company
+    const User = (await import('@/models/User')).default;
+    const fullUser = await User.findById(user.userId).populate('company');
+    
+    if (!fullUser) {
+      return NextResponse.json(
+        { success: false, message: 'User not found' },
+        { status: 404 }
+      );
+    }
+
+    console.log('👤 Full user details:', { 
+      id: fullUser._id, 
+      name: fullUser.name, 
+      company: fullUser.company?.name 
+    });
+
     const body = await request.json();
     const { amount, category, subcategory, vendor, description, date, receiptUrl } = body;
+
+    console.log('📋 Expense data:', { amount, category, vendor, description });
 
     // Validation
     if (!amount || !category || !vendor || !description || !date) {
@@ -124,9 +160,17 @@ export async function POST(request) {
       );
     }
 
-    // Create expense
+    if (!fullUser.company) {
+      return NextResponse.json(
+        { success: false, message: 'User company not found' },
+        { status: 400 }
+      );
+    }
+
+    // Create expense with company
     const expense = await Expense.create({
       employeeId: user.userId,
+      company: fullUser.company._id,
       amount: parseFloat(amount),
       category,
       subcategory,
@@ -136,6 +180,8 @@ export async function POST(request) {
       receiptUrl,
       status: 'pending',
     });
+
+    console.log('✅ Expense created:', expense._id);
 
     // Check policy compliance
     const policyCheck = await checkPolicyCompliance(expense, user);
@@ -206,57 +252,49 @@ export async function POST(request) {
 // Policy compliance check function
 async function checkPolicyCompliance(expense, user) {
   try {
-    // Fetch department policy
-    const policy = await Policy.findOne({
-      department: user.department || 'Default',
-      isActive: true,
-    });
-
-    if (!policy) {
+    // Get user's company
+    const User = (await import('@/models/User')).default;
+    const fullUser = await User.findById(user.userId).populate('company');
+    
+    if (!fullUser || !fullUser.company) {
       return { isCompliant: true, autoApprove: expense.amount < 50 };
     }
 
+    // Fetch company policies based on category
+    const policy = await Policy.findOne({
+      company: fullUser.company._id,
+      category: expense.category.toLowerCase(),
+    });
+
+    console.log(`🔍 Policy check for ${expense.category}:`, policy ? 'Found' : 'Not found');
+
+    if (!policy) {
+      // Default auto-approve for small amounts if no policy
+      return { isCompliant: true, autoApprove: expense.amount < 100 };
+    }
+
     const violations = [];
-    const rules = policy.rules;
+
+    // Check if expense exceeds policy max amount
+    if (expense.amount > policy.maxAmount) {
+      violations.push({
+        rule: 'Amount Limit Exceeded',
+        message: `Amount $${expense.amount} exceeds policy limit of $${policy.maxAmount}`,
+        severity: 'high',
+      });
+    }
 
     // Check receipt requirement
-    if (expense.amount > rules.requiresReceiptOver && !expense.receiptUrl) {
+    if (policy.requiresReceipt && !expense.receiptUrl) {
       violations.push({
         rule: 'Receipt Required',
-        message: `Receipt required for expenses over $${rules.requiresReceiptOver}`,
+        message: `Receipt is required for this expense category`,
         severity: 'high',
       });
     }
 
-    // Check meal limits
-    if (expense.category === 'Meals' && expense.amount > rules.mealLimitPerDay) {
-      violations.push({
-        rule: 'Meal Limit Exceeded',
-        message: `Meal expense exceeds daily limit of $${rules.mealLimitPerDay}`,
-        severity: 'medium',
-      });
-    }
-
-    // Check hotel limits
-    if (expense.category === 'Accommodation' && expense.amount > rules.hotelLimitPerNight) {
-      violations.push({
-        rule: 'Hotel Limit Exceeded',
-        message: `Hotel expense exceeds nightly limit of $${rules.hotelLimitPerNight}`,
-        severity: 'medium',
-      });
-    }
-
-    // Check blacklisted vendors
-    if (rules.blacklistedVendors && rules.blacklistedVendors.includes(expense.vendor)) {
-      violations.push({
-        rule: 'Blacklisted Vendor',
-        message: `${expense.vendor} is not an approved vendor`,
-        severity: 'high',
-      });
-    }
-
-    // Auto-approve logic
-    const autoApprove = violations.length === 0 && expense.amount < rules.autoApproveLimit;
+    // Auto-approve logic - only if policy doesn't require approval and no violations
+    const autoApprove = violations.length === 0 && !policy.requiresApproval;
 
     return {
       isCompliant: violations.length === 0,

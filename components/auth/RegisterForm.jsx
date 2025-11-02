@@ -1,13 +1,14 @@
 'use client';
 
 import { useState } from 'react';
-import { useAuth } from '@/context/AuthContext';
+import { useRouter } from 'next/navigation';
+import axios from 'axios';
 import Input from '@/components/ui/Input';
 import Button from '@/components/ui/Button';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, CheckCircle } from 'lucide-react';
 
 export default function RegisterForm() {
-  const { register } = useAuth();
+  const router = useRouter();
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -18,6 +19,10 @@ export default function RegisterForm() {
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [company, setCompany] = useState(null);
+  const [emailValidated, setEmailValidated] = useState(false);
+  const [validatingEmail, setValidatingEmail] = useState(false);
 
   const departments = [
     'Sales',
@@ -38,17 +43,63 @@ export default function RegisterForm() {
     { value: 'executive', label: 'Executive' },
   ];
 
+  const validateCompanyDomain = async (email) => {
+    if (!email || !email.includes('@')) return;
+    
+    setValidatingEmail(true);
+    try {
+      const response = await axios.post('/api/companies/validate', { email });
+      
+      if (response.data.success) {
+        setCompany(response.data.company);
+        setEmailValidated(true);
+        setError('');
+        
+        // Show success message if it's a new company
+        if (response.data.isNewCompany) {
+          console.log('✅ Demo company created:', response.data.message);
+        }
+      } else {
+        setCompany(null);
+        setEmailValidated(false);
+        
+        // Show different messages based on email type
+        if (response.data.isPersonalEmail) {
+          setError(`${response.data.message} Would you like to create a demo company for testing?`);
+        } else {
+          setError(response.data.message);
+        }
+      }
+    } catch (err) {
+      setCompany(null);
+      setEmailValidated(false);
+      setError('Failed to validate company domain');
+    } finally {
+      setValidatingEmail(false);
+    }
+  };
+
   const handleChange = (e) => {
+    const { name, value } = e.target;
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value,
+      [name]: value,
     });
     setError('');
+    
+    // Validate company domain when email is entered
+    if (name === 'email' && value.includes('@')) {
+      validateCompanyDomain(value);
+    } else if (name === 'email') {
+      setEmailValidated(false);
+      setCompany(null);
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setSuccess(false);
 
     // Validation
     if (formData.password !== formData.confirmPassword) {
@@ -61,21 +112,36 @@ export default function RegisterForm() {
       return;
     }
 
-    setLoading(true);
-
-    const result = await register({
-      name: formData.name,
-      email: formData.email,
-      password: formData.password,
-      department: formData.department,
-      role: formData.role,
-    });
-
-    if (!result.success) {
-      setError(result.message);
+    if (!emailValidated || !company) {
+      setError('Please enter a valid company email address');
+      return;
     }
 
-    setLoading(false);
+    setLoading(true);
+
+    try {
+      const response = await axios.post('/api/auth/register', {
+        name: formData.name,
+        email: formData.email,
+        password: formData.password,
+        department: formData.department,
+        role: formData.role,
+        companyId: company.id,
+      });
+
+      if (response.data.success) {
+        setSuccess(true);
+        // Redirect to login page after a short delay
+        setTimeout(() => {
+          router.push('/login?registered=true');
+        }, 2000);
+      }
+    } catch (error) {
+      console.error('Registration failed:', error);
+      setError(error.response?.data?.message || 'Registration failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -84,6 +150,16 @@ export default function RegisterForm() {
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg flex items-center gap-2">
           <AlertCircle className="w-5 h-5" />
           <span>{error}</span>
+        </div>
+      )}
+
+      {success && (
+        <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg flex items-center gap-2">
+          <CheckCircle className="w-5 h-5" />
+          <div>
+            <p className="font-semibold">Account created successfully!</p>
+            <p className="text-sm">Redirecting you to the login page...</p>
+          </div>
         </div>
       )}
 
@@ -109,6 +185,23 @@ export default function RegisterForm() {
           onChange={handleChange}
           required
         />
+        {validatingEmail && (
+          <div className="mt-2 text-sm text-blue-600 flex items-center gap-2">
+            <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+            Validating company...
+          </div>
+        )}
+        {emailValidated && company && (
+          <div className="mt-2 p-3 bg-green-50 border border-green-200 rounded-lg">
+            <div className="flex items-center gap-2 text-green-700">
+              <CheckCircle className="w-4 h-4" />
+              <span className="font-semibold">Company verified!</span>
+            </div>
+            <p className="text-sm text-green-600 mt-1">
+              Registering for: <strong>{company.name}</strong> ({company.domain})
+            </p>
+          </div>
+        )}
       </div>
 
       <div>
@@ -179,9 +272,9 @@ export default function RegisterForm() {
         variant="primary"
         size="lg"
         className="w-full"
-        disabled={loading}
+        disabled={loading || success}
       >
-        {loading ? 'Creating Account...' : 'Register'}
+        {loading ? 'Creating Account...' : success ? 'Account Created!' : 'Create Account'}
       </Button>
     </form>
   );
