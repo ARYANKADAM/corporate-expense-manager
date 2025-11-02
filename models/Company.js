@@ -98,9 +98,7 @@ const CompanySchema = new mongoose.Schema({
   },
 });
 
-// Indexes for better performance
-CompanySchema.index({ domain: 1 });
-CompanySchema.index({ name: 1 });
+// Note: Indexes automatically created by unique: true in schema fields
 
 // Pre-save middleware to update the updatedAt field
 CompanySchema.pre('save', function(next) {

@@ -192,8 +192,24 @@ export async function POST(request) {
       expense.status = 'flagged';
       await expense.save();
     } else if (policyCheck.autoApprove) {
+      // Auto-approve but don't set employee as approver - leave for system/manager approval
       expense.status = 'approved';
-      expense.approvedBy = user.userId;
+      // Don't set approvedBy to the submitting employee - leave it null for system approval
+      // or find and set the manager/finance person as approver
+      
+      // Find a manager or finance person in the same company to set as approver
+      const User = (await import('@/models/User')).default;
+      const approver = await User.findOne({
+        company: fullUser.company._id,
+        role: { $in: ['manager', 'finance', 'executive'] },
+        _id: { $ne: user.userId } // Not the same person
+      });
+      
+      if (approver) {
+        expense.approvedBy = approver._id;
+      }
+      // If no approver found, leave approvedBy as null (system approval)
+      
       expense.approvedAt = new Date();
       await expense.save();
     }
@@ -293,8 +309,12 @@ async function checkPolicyCompliance(expense, user) {
       });
     }
 
-    // Auto-approve logic - only if policy doesn't require approval and no violations
-    const autoApprove = violations.length === 0 && !policy.requiresApproval;
+    // Auto-approve logic - only for very small amounts and only if user is not an employee
+    // Employees should never have auto-approved expenses - they need manager approval
+    const autoApprove = violations.length === 0 && 
+                       !policy.requiresApproval && 
+                       expense.amount <= 25 && // Very small amounts only
+                       user.role !== 'employee'; // Never auto-approve for employees
 
     return {
       isCompliant: violations.length === 0,
