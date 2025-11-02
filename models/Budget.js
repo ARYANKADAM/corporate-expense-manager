@@ -54,4 +54,9 @@ const BudgetSchema = new mongoose.Schema({
   },
 });
 
+// Multi-tenant indexes for performance
+BudgetSchema.index({ company: 1, department: 1 });
+BudgetSchema.index({ company: 1, isActive: 1 });
+BudgetSchema.index({ company: 1, startDate: 1, endDate: 1 });
+
 export default mongoose.models.Budget || mongoose.model('Budget', BudgetSchema);

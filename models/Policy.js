@@ -56,4 +56,8 @@ const PolicySchema = new mongoose.Schema({
   },
 });
 
+// Multi-tenant indexes for performance
+PolicySchema.index({ company: 1, department: 1 });
+PolicySchema.index({ company: 1, isActive: 1 });
+
 export default mongoose.models.Policy || mongoose.model('Policy', PolicySchema);

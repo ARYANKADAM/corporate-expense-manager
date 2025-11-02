@@ -13,6 +13,7 @@ export default function LoginForm() {
   const [formData, setFormData] = useState({
     email: '',
     password: '',
+    role: '',
   });
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
@@ -43,7 +44,7 @@ export default function LoginForm() {
     setError('');
     setLoading(true);
 
-    const result = await login(formData.email, formData.password);
+    const result = await login(formData.email, formData.password, formData.role);
 
     if (!result.success) {
       setError(result.message);
@@ -78,6 +79,28 @@ export default function LoginForm() {
           onChange={handleChange}
           required
         />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Role/Department
+        </label>
+        <select
+          name="role"
+          value={formData.role}
+          onChange={handleChange}
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+        >
+          <option value="">Select your role</option>
+          <option value="employee">Employee</option>
+          <option value="manager">Manager</option>
+          <option value="finance">Finance</option>
+          <option value="executive">Executive</option>
+          <option value="admin">Admin</option>
+        </select>
+        <p className="text-xs text-gray-500 mt-1">
+          Optional: Select your role if multiple accounts exist with the same email
+        </p>
       </div>
 
       <div>

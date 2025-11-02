@@ -88,5 +88,8 @@ const ExpenseSchema = new mongoose.Schema({
 ExpenseSchema.index({ employeeId: 1, date: -1 });
 ExpenseSchema.index({ status: 1 });
 ExpenseSchema.index({ category: 1 });
+// Multi-tenant indexes for company isolation and performance
+ExpenseSchema.index({ company: 1, status: 1 });
+ExpenseSchema.index({ company: 1, date: -1 });
 
 export default mongoose.models.Expense || mongoose.model('Expense', ExpenseSchema);

@@ -77,4 +77,8 @@ UserSchema.pre('save', function (next) {
   next();
 });
 
+// Multi-tenant indexes for performance
+UserSchema.index({ company: 1, department: 1 });
+UserSchema.index({ company: 1, role: 1 });
+
 export default mongoose.models.User || mongoose.model('User', UserSchema);

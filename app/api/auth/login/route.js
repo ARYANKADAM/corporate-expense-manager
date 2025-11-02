@@ -1,14 +1,18 @@
 import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import User from '@/models/User';
+import Company from '@/models/Company';
 import { generateToken } from '@/lib/auth';
 
 export async function POST(request) {
   try {
+    console.log('🚀 Login API called');
     await connectDB();
+    console.log('✅ Connected to database');
 
     const body = await request.json();
-    const { email, password } = body;
+    const { email, password, role } = body;
+    console.log('📝 Request body:', { email, role: role || 'not provided' });
 
     // Validation
     if (!email || !password) {
@@ -18,12 +22,27 @@ export async function POST(request) {
       );
     }
 
-    // Find user and include password
-    const user = await User.findOne({ email }).select('+password');
+    // Build query - if role is provided, use it for more specific matching
+    let query = { email };
+    if (role) {
+      query.role = role;
+    }
+
+    console.log('🔍 Login attempt:', { email, role: role || 'not specified' });
+
+    // Find user with matching email and optionally role, include password
+    const user = await User.findOne(query).select('+password');
+    
+    console.log('👤 Found user:', user ? { id: user._id, email: user.email, role: user.role } : 'Not found');
+    
+    // Try to populate company if user exists
+    if (user && user.company) {
+      await user.populate('company');
+    }
     
     if (!user) {
       return NextResponse.json(
-        { success: false, message: 'Invalid credentials' },
+        { success: false, message: 'Invalid credentials or role mismatch' },
         { status: 401 }
       );
     }
@@ -66,6 +85,7 @@ export async function POST(request) {
           role: user.role,
           department: user.department,
           employeeId: user.employeeId,
+          company: user.company || null,
         },
       },
       { status: 200 }

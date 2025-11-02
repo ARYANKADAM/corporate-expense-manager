@@ -18,7 +18,7 @@ export async function GET(request) {
     }
 
     // Find user
-    const user = await User.findById(decoded.userId).populate('managerId', 'name email');
+    const user = await User.findById(decoded.userId).populate('managerId', 'name email').populate('company');
     
     if (!user) {
       return NextResponse.json(
@@ -39,6 +39,7 @@ export async function GET(request) {
           employeeId: user.employeeId,
           manager: user.managerId,
           isActive: user.isActive,
+          company: user.company,
         },
       },
       { status: 200 }

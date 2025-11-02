@@ -20,7 +20,15 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const department = searchParams.get('department');
 
-    let query = { isActive: true };
+    // Ensure user has company assigned
+    if (!user.company) {
+      return NextResponse.json(
+        { success: false, message: 'User not assigned to any company' },
+        { status: 400 }
+      );
+    }
+
+    let query = { isActive: true, company: user.company };
     
     if (user.role === 'employee' || user.role === 'manager') {
       query.department = user.department || department;

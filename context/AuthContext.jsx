@@ -50,9 +50,14 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const login = async (email, password) => {
+  const login = async (email, password, role) => {
     try {
-      const response = await axios.post('/api/auth/login', { email, password });
+      const loginData = { email, password };
+      if (role) {
+        loginData.role = role;
+      }
+      
+      const response = await axios.post('/api/auth/login', loginData);
       
       if (response.data.success) {
         const { token, user } = response.data;
